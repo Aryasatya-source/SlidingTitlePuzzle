@@ -66,7 +66,7 @@ Gunakan awalan berikut agar riwayat perubahan mudah dibaca:
 * **Library Bawaan Python:** `collections` (`deque`), `heapq`, `time`
 
 ```text
-8-puzzle-ai-solver/
+SlidingTilePuzzle/
 ├── frontend/               # [SELESAI] Antarmuka Single-View Dashboard
 │   ├── index.html
 │   ├── style.css
