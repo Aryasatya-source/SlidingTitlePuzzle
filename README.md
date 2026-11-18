@@ -75,8 +75,7 @@ SlidingTilePuzzle/
 │   ├── app.py              # Entry point server REST API & konfigurasi CORS
 │   ├── solver.py           # Logika environment 8-Puzzle, Manhattan Distance, BFS, GBFS, & A*
 │   └── requirements.txt    # Daftar dependensi (flask, flask-cors)
-├── BACKEND_SPEC.md         # Dokumen spesifikasi teknis, roadmap, & workflow
-└── README.md               # Halaman utama repositori GitHub
+├── README.md         # Dokumen spesifikasi teknis, roadmap, & workflow
 ```
 
 ---
