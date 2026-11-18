@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>8-Puzzle AI Solver & Benchmark</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- HEADER -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1>8-PUZZLE AI SOLVER & BENCHMARK</h1>
+    </div>
+    <div class="topbar-right">
+      <div class="inst-badge">
+        <span class="inst-title">INFORMATIKA</span>
+        <span class="inst-sub">INSTITUT TEKNOLOGI KALIMANTAN</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN SINGLE-VIEW DASHBOARD -->
+  <main class="dashboard">
+    <!-- KOLOM KIRI: PAPAN PERMAINAN -->
+    <section class="card board-card">
+      <div class="card-header">
+        <h2>Papan Permainan (3x3 Sliding Puzzle)</h2>
+        <span id="status-badge" class="badge badge-ready">Ready</span>
+      </div>
+
+      <div class="board-wrapper">
+        <div id="puzzle-grid" class="puzzle-grid" aria-label="Papan 8-Puzzle 3x3">
+          <!-- Ubin 3x3 di-render otomatis oleh app.js -->
+        </div>
+      </div>
+
+      <div class="board-meta">
+        <span>Langkah Manual: <strong id="manual-steps">0</strong></span>
+        <span class="goal-hint">Goal: <strong>[1 2 3 | 4 5 6 | 7 8 _]</strong></span>
+      </div>
+
+      <div class="board-actions">
+        <button id="btn-shuffle" class="btn btn-outline">Acak Papan</button>
+        <button id="btn-reset" class="btn btn-secondary">Reset State</button>
+      </div>
+    </section>
+
+    <!-- KOLOM KANAN: KONFIGURASI AI & TABEL KOMPARASI -->
+    <div class="right-column">
+      <!-- PANEL KANAN ATAS: KONFIGURASI AI AGENT -->
+      <section class="card config-card">
+        <h2>Konfigurasi AI Agent</h2>
+        <p class="section-label">Algoritma</p>
+
+        <div class="algo-group" role="radiogroup" aria-label="Pilih Algoritma AI">
+          <label class="radio-option">
+            <input type="radio" name="algorithm" value="BFS" />
+            <span>BFS</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="algorithm" value="GBFS" />
+            <span>Greedy Best-First Search</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="algorithm" value="ASTAR" checked />
+            <span>A* Search</span>
+          </label>
+        </div>
+
+        <button id="btn-solve" class="btn btn-primary btn-full">Selesaikan</button>
+
+        <hr class="divider" />
+
+        <div class="playback-section">
+          <div class="playback-controls">
+            <span class="section-label">Playback Kontrol</span>
+            <div class="btn-group">
+              <button id="btn-play" class="icon-btn" title="Play Animasi">&#9654;</button>
+              <button id="btn-pause" class="icon-btn" title="Pause Animasi">&#10074;&#10074;</button>
+              <button id="btn-prev" class="icon-btn" title="Langkah Sebelumnya">&#9198;</button>
+              <button id="btn-next" class="icon-btn" title="Langkah Berikutnya">&#9197;</button>
+            </div>
+            <span class="step-indicator">Langkah: <strong id="step-counter">0 / 0</strong></span>
+          </div>
+
+          <div class="speed-control">
+            <label for="speed-slider" class="section-label">
+              Kecepatan (<span id="speed-value">1.0x</span>)
+            </label>
+            <input type="range" id="speed-slider" min="0.5" max="3" step="0.5" value="1" />
+          </div>
+        </div>
+      </section>
+
+      <!-- PANEL KANAN BAWAH: PERBANDINGAN KINERJA -->
+      <section class="card benchmark-card">
+        <div class="card-header">
+          <h2>Perbandingan Kinerja Algoritma</h2>
+          <button id="btn-clear-table" class="btn-link">Reset Tabel</button>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="benchmark-table">
+            <thead>
+              <tr>
+                <th>Algoritma</th>
+                <th>Expanded Nodes<br /><small>(Memori)</small></th>
+                <th>Waktu<br /><small>(ms)</small></th>
+                <th>Path Cost<br /><small>(Langkah)</small></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="row-BFS">
+                <td>BFS</td>
+                <td class="col-nodes">-</td>
+                <td class="col-time">-</td>
+                <td class="col-cost">-</td>
+              </tr>
+              <tr id="row-GBFS">
+                <td>Greedy Best-First Search</td>
+                <td class="col-nodes">-</td>
+                <td class="col-time">-</td>
+                <td class="col-cost">-</td>
+              </tr>
+              <tr id="row-ASTAR">
+                <td>A* Search</td>
+                <td class="col-nodes">-</td>
+                <td class="col-time">-</td>
+                <td class="col-cost">-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
