@@ -1,9 +1,13 @@
 from collections import deque
 import time
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
+
+# ==============================================================================
+# BAGIAN 1: ENVIRONMENT, VALIDASI PAPAN & HELPER FUNCTIONS
+# ==============================================================================
 
 Board = List[int]
-StateTuple = Tuple[int, ...] #isinya int, jumlahnya gabisa ditentuin
+StateTuple = Tuple[int, ...]
 
 GOAL_STATE: Board = [1, 2, 3, 4, 5, 6, 7, 8, 0]
 GOAL_TUPLE: StateTuple = tuple(GOAL_STATE)
@@ -66,12 +70,26 @@ def get_neighbors(state: StateTuple) -> List[StateTuple]:
     return neighbors
 
 
+def manhattan_distance(state: StateTuple) -> int:
+    """
+    Menghitung total jarak Manhattan setiap ubin (1..8) ke posisi goal.
+    Digunakan sebagai fungsi heuristik h(n) pada GBFS dan A*.
+    """
+    distance = 0
+    for idx, tile in enumerate(state):
+        if tile != 0:
+            curr_row, curr_col = divmod(idx, 3)
+            goal_row, goal_col = divmod(tile - 1, 3)
+            distance += abs(curr_row - goal_row) + abs(curr_col - goal_col)
+    return distance
+
+
 def _reconstruct_path(
-    parent_map: Dict[StateTuple, StateTuple | None], goal: StateTuple
+    parent_map: Dict[StateTuple, Optional[StateTuple]], goal: StateTuple
 ) -> List[Board]:
     """Merekonstruksi jalur langkah dari initial state ke goal state."""
     path_tuples: List[StateTuple] = []
-    curr: StateTuple | None = goal
+    curr: Optional[StateTuple] = goal
     while curr is not None:
         path_tuples.append(curr)
         curr = parent_map[curr]
@@ -79,18 +97,13 @@ def _reconstruct_path(
     return [list(s) for s in path_tuples]
 
 
+# ==============================================================================
+# BAGIAN 2: ALGORITMA BREADTH-FIRST SEARCH (BFS)
+# ==============================================================================
+
 def solve_bfs(initial_board: Board) -> Dict[str, object]:
     """
     Menyelesaikan 8-Puzzle menggunakan Breadth-First Search (BFS).
-    Mengembalikan dictionary sesuai kontrak REST API:
-    {
-        "steps": [...],
-        "metrics": {
-            "expandedNodes": int,
-            "executionTimeMs": float,
-            "pathCost": int
-        }
-    }
     """
     start_tuple = validate_board(initial_board)
 
@@ -114,7 +127,7 @@ def solve_bfs(initial_board: Board) -> Dict[str, object]:
 
     queue: deque[StateTuple] = deque([start_tuple])
     visited: set[StateTuple] = {start_tuple}
-    parent: Dict[StateTuple, StateTuple | None] = {start_tuple: None}
+    parent: Dict[StateTuple, Optional[StateTuple]] = {start_tuple: None}
     expanded_nodes = 0
 
     while queue:
@@ -144,13 +157,33 @@ def solve_bfs(initial_board: Board) -> Dict[str, object]:
     )
 
 
-#testing
-if __name__ == "__main__":
-    sample_board = [1, 2, 3, 5, 0, 6, 4, 7, 8]
-    result = solve_bfs(sample_board)
-    print("Path Cost:", result["metrics"]["pathCost"])
-    print("Expanded Nodes:", result["metrics"]["expandedNodes"])
-    print("Execution Time (ms):", result["metrics"]["executionTimeMs"])
-    print("Total Steps (termasuk initial):", len(result["steps"]))
-    for idx, step in enumerate(result["steps"]):
-        print(f"Step {idx}: {step}")
+# ==============================================================================
+# BAGIAN 3: ALGORITMA GREEDY BEST-FIRST SEARCH (GBFS)
+# ==============================================================================
+
+def solve_gbfs(initial_board: Board) -> Dict[str, object]:
+    raise ValueError("Algoritma Greedy Best-First Search (GBFS) belum diimplementasikan.")
+
+
+# ==============================================================================
+# BAGIAN 4: ALGORITMA A* (A-STAR)
+# ==============================================================================
+
+def solve_astar(initial_board: Board) -> Dict[str, object]:
+    raise ValueError("Algoritma A* Search belum diimplementasikan.")
+
+
+# ==============================================================================
+# BAGIAN 5: DISPATCHER UTAMA (PINTU MASUK UNTUK REST API app.py)
+# ==============================================================================
+
+def solve_puzzle(algorithm: str, board: Board) -> Dict[str, object]:
+    """Menghubungkan request dari app.py ke fungsi solver yang dipilih."""
+    algo = algorithm.upper()
+    if algo == "BFS":
+        return solve_bfs(board)
+    elif algo == "GBFS":
+        return solve_gbfs(board)
+    elif algo == "ASTAR":
+        return solve_astar(board)
+    raise ValueError(f"Algoritma '{algorithm}' tidak dikenal.")
