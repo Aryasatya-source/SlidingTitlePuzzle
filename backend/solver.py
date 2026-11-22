@@ -4,6 +4,10 @@ import itertools
 import time
 from typing import Dict, List, Optional, Tuple
 
+# ==============================================================================
+# BAGIAN 1: ENVIRONMENT, VALIDASI PAPAN & HELPER FUNCTIONS
+# ==============================================================================
+
 Board = List[int]
 StateTuple = Tuple[int, ...] #isinya int, jumlahnya gabisa ditentuin
 
@@ -41,6 +45,16 @@ def is_solvable(board: List[int]) -> bool:
     papan solvable jika dan hanya jika jumlah inversi genap.
     """
     return count_inversions(board) % 2 == 0
+
+def manhattan_distance(state: StateTuple) -> int:
+    """Total jarak Manhattan ubin 1..8 ke posisi goal (heuristik h(n))."""
+    distance = 0
+    for idx, tile in enumerate(state):
+        if tile != 0:
+            curr_row, curr_col = divmod(idx, 3)
+            goal_row, goal_col = divmod(tile - 1, 3)
+            distance += abs(curr_row - goal_row) + abs(curr_col - goal_col)
+    return distance
 
 
 def get_neighbors(state: StateTuple) -> List[StateTuple]:
@@ -80,6 +94,9 @@ def _reconstruct_path(
     path_tuples.reverse()
     return [list(s) for s in path_tuples]
 
+# ==============================================================================
+# BAGIAN 2: ALGORITMA BREADTH-FIRST SEARCH (BFS)
+# ==============================================================================
 
 def solve_bfs(initial_board: Board) -> Dict[str, object]:
     """
@@ -144,15 +161,11 @@ def solve_bfs(initial_board: Board) -> Dict[str, object]:
     raise UnsolvableBoardError(
         "Konfigurasi papan tidak dapat diselesaikan (unsolvable)."
     )
-def manhattan_distance(state: StateTuple) -> int:
-    """Total jarak Manhattan ubin 1..8 ke posisi goal (heuristik h(n))."""
-    distance = 0
-    for idx, tile in enumerate(state):
-        if tile != 0:
-            curr_row, curr_col = divmod(idx, 3)
-            goal_row, goal_col = divmod(tile - 1, 3)
-            distance += abs(curr_row - goal_row) + abs(curr_col - goal_col)
-    return distance
+
+# ==============================================================================
+# BAGIAN 3: ALGORITMA GREEDY BEST-FIRST SEARCH (GBFS)
+# ==============================================================================
+
 
 def solve_gbfs(initial_board: Board) -> Dict[str, object]:
     """
@@ -218,8 +231,16 @@ def solve_gbfs(initial_board: Board) -> Dict[str, object]:
         "Konfigurasi papan tidak dapat diselesaikan (unsolvable)."
     )
 
+# ==============================================================================
+# BAGIAN 4: ALGORITMA A* (A-STAR)
+# ==============================================================================
+
 def solve_astar(initial_board: Board) -> Dict[str, object]:
     raise ValueError("Algoritma A* Search belum diimplementasikan.")
+
+# ==============================================================================
+# BAGIAN 5: DISPATCHER UTAMA (PINTU MASUK UNTUK REST API app.py)
+# ==============================================================================
 
 def solve_puzzle(algorithm: str, board: Board) -> Dict[str, object]:
     """Menghubungkan request dari app.py ke fungsi solver yang dipilih."""
@@ -231,14 +252,3 @@ def solve_puzzle(algorithm: str, board: Board) -> Dict[str, object]:
     elif algo == "ASTAR":
         return solve_astar(board)
     raise ValueError(f"Algoritma '{algorithm}' tidak dikenal.")
-
-#testing
-if __name__ == "__main__":
-    sample_board = [1, 2, 3, 5, 0, 6, 4, 7, 8]
-    result = solve_bfs(sample_board)
-    print("Path Cost:", result["metrics"]["pathCost"])
-    print("Expanded Nodes:", result["metrics"]["expandedNodes"])
-    print("Execution Time (ms):", result["metrics"]["executionTimeMs"])
-    print("Total Steps (termasuk initial):", len(result["steps"]))
-    for idx, step in enumerate(result["steps"]):
-        print(f"Step {idx}: {step}")
