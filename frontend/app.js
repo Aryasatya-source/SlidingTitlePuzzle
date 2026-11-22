@@ -117,28 +117,28 @@ function isSolvable(board) {
 const SolverBridge = {
   /**
    * Dipanggil saat tombol "Selesaikan" ditekan.
-   * Nanti ganti isi fungsi ini dengan pemanggilan algoritma backend (JS atau API Python).
    */
-  async solve(algorithm, startBoard) {
-    console.log(`[Frontend -> Backend] Request solve: ${algorithm}`, startBoard);
+async solve(algorithm, startBoard) {
+    try {
+      const response = await fetch("http://127.0.0.1:5000/solve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          algorithm: algorithm,
+          board: startBoard,
+        }),
+      });
 
-    // --- MOCK RESPONSE SEMENTARA (Hapus setelah backend siap) ---
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          steps: [
-            [...startBoard],
-            [1, 2, 3, 5, 7, 6, 4, 0, 8],
-            [1, 2, 3, 5, 7, 6, 4, 8, 0],
-          ],
-          metrics: {
-            expandedNodes: algorithm === "BFS" ? 24103 : algorithm === "GBFS" ? 112 : 840,
-            executionTimeMs: algorithm === "BFS" ? 350 : algorithm === "GBFS" ? 2 : 18,
-            pathCost: algorithm === "GBFS" ? 48 : 22,
-          },
-        });
-      }, 300);
-    });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Gagal memproses solusi di server.");
+      }
+      return data;
+    } catch (err) {
+      alert(`Error: ${err.message}\n\nPastikan server Python (app.py) sudah dijalankan!`);
+      setStatus("Error", "badge-ready");
+      throw err;
+    }
   },
 
   /**

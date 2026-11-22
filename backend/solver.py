@@ -1,6 +1,8 @@
 from collections import deque
+import heapq
+import itertools
 import time
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 Board = List[int]
 StateTuple = Tuple[int, ...] #isinya int, jumlahnya gabisa ditentuin
@@ -142,7 +144,93 @@ def solve_bfs(initial_board: Board) -> Dict[str, object]:
     raise UnsolvableBoardError(
         "Konfigurasi papan tidak dapat diselesaikan (unsolvable)."
     )
+def manhattan_distance(state: StateTuple) -> int:
+    """Total jarak Manhattan ubin 1..8 ke posisi goal (heuristik h(n))."""
+    distance = 0
+    for idx, tile in enumerate(state):
+        if tile != 0:
+            curr_row, curr_col = divmod(idx, 3)
+            goal_row, goal_col = divmod(tile - 1, 3)
+            distance += abs(curr_row - goal_row) + abs(curr_col - goal_col)
+    return distance
 
+def solve_gbfs(initial_board: Board) -> Dict[str, object]:
+    """
+    Menyelesaikan 8-Puzzle menggunakan Greedy Best-First Search (GBFS).
+    Fungsi evaluasi f(n) = h(n), dengan h(n) = Manhattan Distance.
+    Priority queue: heapq dengan tuple (h_score, tie_breaker, state).
+    """
+    start_tuple = validate_board(initial_board)
+
+    if not is_solvable(list(start_tuple)):
+        raise UnsolvableBoardError(
+            "Konfigurasi papan tidak dapat diselesaikan (unsolvable)."
+        )
+
+    start_time = time.perf_counter()
+
+    if start_tuple == GOAL_TUPLE:
+        elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        return {
+            "steps": [list(start_tuple)],
+            "metrics": {
+                "expandedNodes": 0,
+                "executionTimeMs": elapsed_ms,
+                "pathCost": 0,
+            },
+        }
+
+    # Counter sebagai tie-breaker agar heapq tidak membandingkan state
+    counter = itertools.count()
+    heap: List[Tuple[int, int, StateTuple]] = [
+        (manhattan_distance(start_tuple), next(counter), start_tuple)
+    ]
+    visited: set[StateTuple] = {start_tuple}
+    parent: Dict[StateTuple, Optional[StateTuple]] = {start_tuple: None}
+    expanded_nodes = 0
+
+    while heap:
+        _, _, current = heapq.heappop(heap)
+        expanded_nodes += 1  # dihitung setiap node di-pop (sama seperti BFS)
+
+        if current == GOAL_TUPLE:
+            elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+            steps = _reconstruct_path(parent, current)
+            return {
+                "steps": steps,
+                "metrics": {
+                    "expandedNodes": expanded_nodes,
+                    "executionTimeMs": elapsed_ms,
+                    "pathCost": len(steps) - 1,
+                },
+            }
+
+        for next_state in get_neighbors(current):
+            if next_state not in visited:
+                visited.add(next_state)
+                parent[next_state] = current
+                heapq.heappush(
+                    heap,
+                    (manhattan_distance(next_state), next(counter), next_state),
+                )
+
+    raise UnsolvableBoardError(
+        "Konfigurasi papan tidak dapat diselesaikan (unsolvable)."
+    )
+
+def solve_astar(initial_board: Board) -> Dict[str, object]:
+    raise ValueError("Algoritma A* Search belum diimplementasikan.")
+
+def solve_puzzle(algorithm: str, board: Board) -> Dict[str, object]:
+    """Menghubungkan request dari app.py ke fungsi solver yang dipilih."""
+    algo = algorithm.upper()
+    if algo == "BFS":
+        return solve_bfs(board)
+    elif algo == "GBFS":
+        return solve_gbfs(board)
+    elif algo == "ASTAR":
+        return solve_astar(board)
+    raise ValueError(f"Algoritma '{algorithm}' tidak dikenal.")
 
 #testing
 if __name__ == "__main__":
