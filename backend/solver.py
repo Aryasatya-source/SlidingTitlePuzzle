@@ -236,7 +236,77 @@ def solve_gbfs(initial_board: Board) -> Dict[str, object]:
 # ==============================================================================
 
 def solve_astar(initial_board: Board) -> Dict[str, object]:
-    raise ValueError("Algoritma A* Search belum diimplementasikan.")
+    """
+    Menyelesaikan 8-Puzzle menggunakan A* Search.
+    Fungsi evaluasi f(n) = g(n) + h(n), dengan h(n) = Manhattan Distance.
+    Priority queue: heapq dengan tuple (f_score, tie_breaker, g_score, state).
+    Manhattan Distance bersifat admissible & consistent, sehingga solusi
+    yang dihasilkan dijamin optimal (path cost sama dengan BFS).
+    """
+    start_tuple = validate_board(initial_board)
+
+    if not is_solvable(list(start_tuple)):
+        raise UnsolvableBoardError(
+            "Konfigurasi papan tidak dapat diselesaikan (unsolvable)."
+        )
+
+    start_time = time.perf_counter()
+
+    if start_tuple == GOAL_TUPLE:
+        elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        return {
+            "steps": [list(start_tuple)],
+            "metrics": {
+                "expandedNodes": 0,
+                "executionTimeMs": elapsed_ms,
+                "pathCost": 0,
+            },
+        }
+
+    # Counter sebagai tie-breaker agar heapq tidak membandingkan state
+    counter = itertools.count()
+    start_h = manhattan_distance(start_tuple)
+    heap: List[Tuple[int, int, int, StateTuple]] = [
+        (start_h, next(counter), 0, start_tuple)  # (f, tie_breaker, g, state)
+    ]
+    best_g: Dict[StateTuple, int] = {start_tuple: 0}
+    parent: Dict[StateTuple, Optional[StateTuple]] = {start_tuple: None}
+    expanded_nodes = 0
+
+    while heap:
+        _, _, g, current = heapq.heappop(heap)
+
+        # Lewati entri usang (state ini sudah ditemukan lewat jalur lebih murah)
+        if g > best_g[current]:
+            continue
+
+        expanded_nodes += 1  # dihitung setiap node di-pop untuk diekspansi
+
+        if current == GOAL_TUPLE:
+            elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+            steps = _reconstruct_path(parent, current)
+            return {
+                "steps": steps,
+                "metrics": {
+                    "expandedNodes": expanded_nodes,
+                    "executionTimeMs": elapsed_ms,
+                    "pathCost": len(steps) - 1,
+                },
+            }
+
+        for next_state in get_neighbors(current):
+            new_g = g + 1  # step cost selalu 1
+            if next_state not in best_g or new_g < best_g[next_state]:
+                best_g[next_state] = new_g
+                parent[next_state] = current
+                f_score = new_g + manhattan_distance(next_state)
+                heapq.heappush(
+                    heap, (f_score, next(counter), new_g, next_state)
+                )
+
+    raise UnsolvableBoardError(
+        "Konfigurasi papan tidak dapat diselesaikan (unsolvable)."
+    )
 
 # ==============================================================================
 # BAGIAN 5: DISPATCHER UTAMA (PINTU MASUK UNTUK REST API app.py)
