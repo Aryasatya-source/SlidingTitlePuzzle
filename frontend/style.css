@@ -95,7 +95,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .card h2 {
@@ -126,7 +126,49 @@ body {
   color: #1e40af;
 }
 
-/* 3x3 BOARD */
+.badge-error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* SEGMENTED SIZE SELECTOR (3x3, 4x4, 5x5) */
+.size-selector {
+  max-width: 400px;
+  margin: 0 auto 16px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 4px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.size-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.size-btn:hover:not(.active) {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.size-btn.active {
+  background: #ffffff;
+  color: var(--primary);
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
+}
+
+/* DYNAMIC PUZZLE BOARD (3x3, 4x4, 5x5) */
 .board-wrapper {
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
@@ -138,23 +180,51 @@ body {
 
 .puzzle-grid {
   display: grid;
+  aspect-ratio: 1 / 1;
+}
+
+.puzzle-grid.grid-3 {
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  aspect-ratio: 1 / 1;
+}
+
+.puzzle-grid.grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 9px;
+}
+
+.puzzle-grid.grid-5 {
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
 }
 
 .tile {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.3rem;
   font-weight: 700;
   color: #ffffff;
-  border-radius: var(--radius-tile);
   cursor: pointer;
   user-select: none;
   box-shadow: 0 4px 0 rgba(15, 23, 42, 0.22);
   transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.grid-3 .tile {
+  font-size: 2.3rem;
+  border-radius: 12px;
+}
+
+.grid-4 .tile {
+  font-size: 1.65rem;
+  border-radius: 10px;
+  box-shadow: 0 3px 0 rgba(15, 23, 42, 0.22);
+}
+
+.grid-5 .tile {
+  font-size: 1.25rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 0 rgba(15, 23, 42, 0.22);
 }
 
 .tile:hover:not(.tile-empty) {
@@ -162,9 +232,10 @@ body {
   filter: brightness(1.06);
 }
 
-.tile-1, .tile-6 { background-color: var(--tile-indigo); }
-.tile-2, .tile-4, .tile-7 { background-color: var(--tile-blue); }
-.tile-3, .tile-5, .tile-8 { background-color: var(--tile-slate); }
+/* Warna ubin konsisten untuk 1..24 */
+.tile-indigo { background-color: var(--tile-indigo); }
+.tile-blue   { background-color: var(--tile-blue); }
+.tile-slate  { background-color: var(--tile-slate); }
 
 .tile-empty {
   background-color: var(--tile-empty);
@@ -177,7 +248,9 @@ body {
   margin: 14px auto 0;
   display: flex;
   justify-content: space-between;
-  font-size: 0.85rem;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.84rem;
   color: var(--text-secondary);
 }
 
