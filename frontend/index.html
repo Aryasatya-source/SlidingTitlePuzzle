@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>8-Puzzle AI Solver & Benchmark</title>
+  <title>Sliding Puzzle AI Solver & Benchmark</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <!-- HEADER -->
   <header class="topbar">
     <div class="topbar-left">
-      <h1>8-PUZZLE AI SOLVER & BENCHMARK</h1>
+      <h1>SLIDING PUZZLE AI SOLVER & BENCHMARK</h1>
     </div>
     <div class="topbar-right">
       <div class="inst-badge">
@@ -25,19 +25,26 @@
     <!-- KOLOM KIRI: PAPAN PERMAINAN -->
     <section class="card board-card">
       <div class="card-header">
-        <h2>Papan Permainan (3x3 Sliding Puzzle)</h2>
+        <h2 id="board-title">Papan Permainan (3x3 Sliding Puzzle)</h2>
         <span id="status-badge" class="badge badge-ready">Ready</span>
       </div>
 
+      <!-- PILIHAN UKURAN PAPAN (3x3, 4x4, 5x5) -->
+      <div class="size-selector" role="tablist" aria-label="Pilih Ukuran Grid Puzzle">
+        <button type="button" class="size-btn active" data-size="3">3x3 (8-Puzzle)</button>
+        <button type="button" class="size-btn" data-size="4">4x4 (15-Puzzle)</button>
+        <button type="button" class="size-btn" data-size="5">5x5 (24-Puzzle)</button>
+      </div>
+
       <div class="board-wrapper">
-        <div id="puzzle-grid" class="puzzle-grid" aria-label="Papan 8-Puzzle 3x3">
-          <!-- Ubin 3x3 di-render otomatis oleh app.js -->
+        <div id="puzzle-grid" class="puzzle-grid grid-3" aria-label="Papan Sliding Puzzle">
+          <!-- Ubin di-render otomatis oleh app.js -->
         </div>
       </div>
 
       <div class="board-meta">
         <span>Langkah Manual: <strong id="manual-steps">0</strong></span>
-        <span class="goal-hint">Goal: <strong>[1 2 3 | 4 5 6 | 7 8 _]</strong></span>
+        <span class="goal-hint">Goal: <strong id="goal-hint-text">[1 2 3 | 4 5 6 | 7 8 _]</strong></span>
       </div>
 
       <div class="board-actions">
@@ -96,7 +103,7 @@
       <!-- PANEL KANAN BAWAH: PERBANDINGAN KINERJA -->
       <section class="card benchmark-card">
         <div class="card-header">
-          <h2>Perbandingan Kinerja Algoritma</h2>
+          <h2 id="benchmark-title">Perbandingan Kinerja (Grid 3x3)</h2>
           <button id="btn-clear-table" class="btn-link">Reset Tabel</button>
         </div>
 

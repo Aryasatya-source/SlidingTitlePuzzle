@@ -1,7 +1,7 @@
 from collections import deque
 import heapq
 import itertools
-import time 
+import time
 from typing import Dict, List, Optional, Tuple
 
 # ==============================================================================
@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Tuple
 # ==============================================================================
 
 Board = List[int]
-StateTuple = Tuple[int, ...]
+StateTuple = Tuple[int, ...] #isinya int, jumlahnya gabisa ditentuin
 
 GOAL_STATE: Board = [1, 2, 3, 4, 5, 6, 7, 8, 0]
 GOAL_TUPLE: StateTuple = tuple(GOAL_STATE)
@@ -46,6 +46,16 @@ def is_solvable(board: List[int]) -> bool:
     """
     return count_inversions(board) % 2 == 0
 
+def manhattan_distance(state: StateTuple) -> int:
+    """Total jarak Manhattan ubin 1..8 ke posisi goal (heuristik h(n))."""
+    distance = 0
+    for idx, tile in enumerate(state):
+        if tile != 0:
+            curr_row, curr_col = divmod(idx, 3)
+            goal_row, goal_col = divmod(tile - 1, 3)
+            distance += abs(curr_row - goal_row) + abs(curr_col - goal_col)
+    return distance
+
 
 def get_neighbors(state: StateTuple) -> List[StateTuple]:
     """
@@ -72,32 +82,17 @@ def get_neighbors(state: StateTuple) -> List[StateTuple]:
     return neighbors
 
 
-def manhattan_distance(state: StateTuple) -> int:
-    """
-    Menghitung total jarak Manhattan setiap ubin (1..8) ke posisi goal.
-    Digunakan sebagai fungsi heuristik h(n) pada GBFS dan A*.
-    """
-    distance = 0
-    for idx, tile in enumerate(state):
-        if tile != 0:
-            curr_row, curr_col = divmod(idx, 3)
-            goal_row, goal_col = divmod(tile - 1, 3)
-            distance += abs(curr_row - goal_row) + abs(curr_col - goal_col)
-    return distance
-
-
 def _reconstruct_path(
-    parent_map: Dict[StateTuple, Optional[StateTuple]], goal: StateTuple
+    parent_map: Dict[StateTuple, StateTuple | None], goal: StateTuple
 ) -> List[Board]:
     """Merekonstruksi jalur langkah dari initial state ke goal state."""
     path_tuples: List[StateTuple] = []
-    curr: Optional[StateTuple] = goal
+    curr: StateTuple | None = goal
     while curr is not None:
         path_tuples.append(curr)
         curr = parent_map[curr]
     path_tuples.reverse()
     return [list(s) for s in path_tuples]
-
 
 # ==============================================================================
 # BAGIAN 2: ALGORITMA BREADTH-FIRST SEARCH (BFS)
@@ -106,6 +101,15 @@ def _reconstruct_path(
 def solve_bfs(initial_board: Board) -> Dict[str, object]:
     """
     Menyelesaikan 8-Puzzle menggunakan Breadth-First Search (BFS).
+    Mengembalikan dictionary sesuai kontrak REST API:
+    {
+        "steps": [...],
+        "metrics": {
+            "expandedNodes": int,
+            "executionTimeMs": float,
+            "pathCost": int
+        }
+    }
     """
     start_tuple = validate_board(initial_board)
 
@@ -129,7 +133,7 @@ def solve_bfs(initial_board: Board) -> Dict[str, object]:
 
     queue: deque[StateTuple] = deque([start_tuple])
     visited: set[StateTuple] = {start_tuple}
-    parent: Dict[StateTuple, Optional[StateTuple]] = {start_tuple: None}
+    parent: Dict[StateTuple, StateTuple | None] = {start_tuple: None}
     expanded_nodes = 0
 
     while queue:
@@ -158,14 +162,74 @@ def solve_bfs(initial_board: Board) -> Dict[str, object]:
         "Konfigurasi papan tidak dapat diselesaikan (unsolvable)."
     )
 
-
 # ==============================================================================
 # BAGIAN 3: ALGORITMA GREEDY BEST-FIRST SEARCH (GBFS)
 # ==============================================================================
 
-def solve_gbfs(initial_board: Board) -> Dict[str, object]:
-    raise ValueError("Algoritma Greedy Best-First Search (GBFS) belum diimplementasikan.")
 
+def solve_gbfs(initial_board: Board) -> Dict[str, object]:
+    """
+    Menyelesaikan 8-Puzzle menggunakan Greedy Best-First Search (GBFS).
+    Fungsi evaluasi f(n) = h(n), dengan h(n) = Manhattan Distance.
+    Priority queue: heapq dengan tuple (h_score, tie_breaker, state).
+    """
+    start_tuple = validate_board(initial_board)
+
+    if not is_solvable(list(start_tuple)):
+        raise UnsolvableBoardError(
+            "Konfigurasi papan tidak dapat diselesaikan (unsolvable)."
+        )
+
+    start_time = time.perf_counter()
+
+    if start_tuple == GOAL_TUPLE:
+        elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        return {
+            "steps": [list(start_tuple)],
+            "metrics": {
+                "expandedNodes": 0,
+                "executionTimeMs": elapsed_ms,
+                "pathCost": 0,
+            },
+        }
+
+    # Counter sebagai tie-breaker agar heapq tidak membandingkan state
+    counter = itertools.count()
+    heap: List[Tuple[int, int, StateTuple]] = [
+        (manhattan_distance(start_tuple), next(counter), start_tuple)
+    ]
+    visited: set[StateTuple] = {start_tuple}
+    parent: Dict[StateTuple, Optional[StateTuple]] = {start_tuple: None}
+    expanded_nodes = 0
+
+    while heap:
+        _, _, current = heapq.heappop(heap)
+        expanded_nodes += 1  # dihitung setiap node di-pop (sama seperti BFS)
+
+        if current == GOAL_TUPLE:
+            elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+            steps = _reconstruct_path(parent, current)
+            return {
+                "steps": steps,
+                "metrics": {
+                    "expandedNodes": expanded_nodes,
+                    "executionTimeMs": elapsed_ms,
+                    "pathCost": len(steps) - 1,
+                },
+            }
+
+        for next_state in get_neighbors(current):
+            if next_state not in visited:
+                visited.add(next_state)
+                parent[next_state] = current
+                heapq.heappush(
+                    heap,
+                    (manhattan_distance(next_state), next(counter), next_state),
+                )
+
+    raise UnsolvableBoardError(
+        "Konfigurasi papan tidak dapat diselesaikan (unsolvable)."
+    )
 
 # ==============================================================================
 # BAGIAN 4: ALGORITMA A* (A-STAR)
@@ -243,7 +307,6 @@ def solve_astar(initial_board: Board) -> Dict[str, object]:
     raise UnsolvableBoardError(
         "Konfigurasi papan tidak dapat diselesaikan (unsolvable)."
     )
-
 
 # ==============================================================================
 # BAGIAN 5: DISPATCHER UTAMA (PINTU MASUK UNTUK REST API app.py)
