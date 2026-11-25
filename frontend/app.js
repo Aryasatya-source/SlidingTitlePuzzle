@@ -1,7 +1,9 @@
 /**
  * FRONTEND STATE & UI CONTROLLER - SLIDING PUZZLE AI SOLVER (3x3, 4x4, 5x5)
- * Siap terhubung dengan REST API backend (BFS, GBFS, A*).
+ * Terhubung dengan REST API backend (BFS, GBFS, A*).
  */
+
+const API_BASE = "http://127.0.0.1:5000";
 
 const DEFAULT_INITIAL_BOARDS = {
   3: [1, 2, 3, 5, 0, 6, 4, 7, 8],
@@ -26,6 +28,10 @@ let currentStepIndex = 0;
 let playInterval = null;
 let playbackSpeed = 1.0;
 
+// State permintaan ke server (untuk mencegah hasil usang diterapkan)
+let isSolving = false;
+let requestId = 0;
+
 // DOM Elements
 const gridEl = document.getElementById("puzzle-grid");
 const boardTitleEl = document.getElementById("board-title");
@@ -37,6 +43,8 @@ const stepCounterEl = document.getElementById("step-counter");
 const speedSlider = document.getElementById("speed-slider");
 const speedValueEl = document.getElementById("speed-value");
 const sizeButtons = document.querySelectorAll(".size-btn");
+const solveButton = document.getElementById("btn-solve");
+const shuffleButton = document.getElementById("btn-shuffle");
 
 function getGoalState(size = gridSize) {
   const total = size * size;
@@ -53,9 +61,17 @@ function getTileColorClass(value) {
 }
 
 /**
- * Render papan NxN ke DOM
+ * Render papan NxN ke DOM.
+ * Jika animate = true, ubin yang berpindah posisi digeser dengan halus (teknik FLIP).
  */
-function renderBoard(state) {
+function renderBoard(state, animate = false) {
+  const oldRects = new Map();
+  if (animate) {
+    gridEl.querySelectorAll(".tile:not(.tile-empty)").forEach((tileEl) => {
+      oldRects.set(tileEl.dataset.value, tileEl.getBoundingClientRect());
+    });
+  }
+
   gridEl.className = `puzzle-grid grid-${gridSize}`;
   gridEl.innerHTML = "";
 
@@ -63,10 +79,42 @@ function renderBoard(state) {
     const tile = document.createElement("div");
     tile.className =
       value === 0 ? "tile tile-empty" : `tile ${getTileColorClass(value)}`;
+    tile.dataset.value = String(value);
     tile.textContent = value === 0 ? "" : value;
     tile.addEventListener("click", () => handleManualMove(index));
     gridEl.appendChild(tile);
   });
+
+  if (animate && oldRects.size > 0) {
+    const duration = playInterval
+      ? Math.min(300, (600 / playbackSpeed) * 0.8)
+      : 180;
+
+    gridEl.querySelectorAll(".tile:not(.tile-empty)").forEach((tileEl) => {
+      const oldRect = oldRects.get(tileEl.dataset.value);
+      if (!oldRect) return;
+
+      const newRect = tileEl.getBoundingClientRect();
+      const dx = oldRect.left - newRect.left;
+      const dy = oldRect.top - newRect.top;
+      if (dx === 0 && dy === 0) return;
+
+      tileEl.style.transition = "none";
+      tileEl.style.transform = `translate(${dx}px, ${dy}px)`;
+      tileEl.style.zIndex = "2";
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          tileEl.style.transition = `transform ${duration}ms ease`;
+          tileEl.style.transform = "";
+          setTimeout(() => {
+            tileEl.style.transition = "";
+            tileEl.style.zIndex = "";
+          }, duration + 50);
+        });
+      });
+    });
+  }
 
   if (isGoalState(state)) {
     setStatus("Solved!", "badge-solved");
@@ -93,14 +141,18 @@ function handleManualMove(tileIndex) {
   const validNeighbors = getNeighbors(emptyIndex, gridSize);
 
   if (validNeighbors.includes(tileIndex)) {
+    requestId++; // hasil solver yang sedang berjalan menjadi usang
     [currentState[emptyIndex], currentState[tileIndex]] = [
       currentState[tileIndex],
       currentState[emptyIndex],
     ];
     manualSteps++;
     manualStepsEl.textContent = manualSteps;
+    solutionSteps = [];
+    currentStepIndex = 0;
+    updateStepCounter();
     setStatus("Manual Mode", "badge-ready");
-    renderBoard(currentState);
+    renderBoard(currentState, true);
   }
 }
 
@@ -109,17 +161,18 @@ function getNeighbors(index, size = gridSize) {
   const col = index % size;
   const neighbors = [];
 
-  if (row > 0) neighbors.push(index - size);        // Atas
+  if (row > 0) neighbors.push(index - size); // Atas
   if (row < size - 1) neighbors.push(index + size); // Bawah
-  if (col > 0) neighbors.push(index - 1);           // Kiri
-  if (col < size - 1) neighbors.push(index + 1);    // Kanan
+  if (col > 0) neighbors.push(index - 1); // Kiri
+  if (col < size - 1) neighbors.push(index + 1); // Kanan
   return neighbors;
 }
 
 /**
- * Generator papan acak yang dijamin 100% solvable untuk 3x3, 4x4, dan 5x5
+ * Generator papan acak lokal (cadangan jika server tidak tersedia).
+ * Dijamin 100% solvable untuk 3x3, 4x4, dan 5x5.
  */
-function generateSolvableBoard() {
+function generateSolvableBoardLocal() {
   if (gridSize === 3) {
     let arr;
     do {
@@ -135,21 +188,43 @@ function generateSolvableBoard() {
   // Untuk 4x4 & 5x5: acak dengan langkah mundur legal dari Goal State
   // Dijamin 100% solvable & menjaga kedalaman langkah tetap realistis untuk demo AI
   const shuffleMoves = gridSize === 4 ? 18 : 20;
-  const arr = [...getGoalState(gridSize)];
-  let emptyIdx = arr.indexOf(0);
-  let prevEmptyIdx = -1;
+  let arr;
+  do {
+    arr = [...getGoalState(gridSize)];
+    let emptyIdx = arr.indexOf(0);
+    let prevEmptyIdx = -1;
 
-  for (let step = 0; step < shuffleMoves; step++) {
-    const candidates = getNeighbors(emptyIdx, gridSize).filter(
-      (idx) => idx !== prevEmptyIdx
-    );
-    const chosenIdx = candidates[Math.floor(Math.random() * candidates.length)];
-    [arr[emptyIdx], arr[chosenIdx]] = [arr[chosenIdx], arr[emptyIdx]];
-    prevEmptyIdx = emptyIdx;
-    emptyIdx = chosenIdx;
-  }
+    for (let step = 0; step < shuffleMoves; step++) {
+      const candidates = getNeighbors(emptyIdx, gridSize).filter(
+        (idx) => idx !== prevEmptyIdx
+      );
+      const chosenIdx = candidates[Math.floor(Math.random() * candidates.length)];
+      [arr[emptyIdx], arr[chosenIdx]] = [arr[chosenIdx], arr[emptyIdx]];
+      prevEmptyIdx = emptyIdx;
+      emptyIdx = chosenIdx;
+    }
+  } while (isGoalState(arr));
 
   return arr;
+}
+
+/**
+ * Ambil papan acak solvable dari backend; gunakan generator lokal jika gagal.
+ */
+async function fetchSolvableBoard() {
+  try {
+    const response = await fetch(`${API_BASE}/shuffle?size=${gridSize}`);
+    const data = await response.json();
+    if (!response.ok || !Array.isArray(data.board)) {
+      throw new Error(data.error || "Respons shuffle tidak valid.");
+    }
+    if (data.board.length !== gridSize * gridSize) {
+      throw new Error("Ukuran papan dari server tidak sesuai.");
+    }
+    return data.board;
+  } catch (err) {
+    return generateSolvableBoardLocal();
+  }
 }
 
 function isSolvable(board, size = gridSize) {
@@ -171,12 +246,24 @@ function isSolvable(board, size = gridSize) {
   return (inversions + emptyRowFromBottom) % 2 === 1;
 }
 
+function updateGoalHint() {
+  if (gridSize === 3) {
+    goalHintEl.textContent = "[1 2 3 | 4 5 6 | 7 8 _]";
+  } else if (gridSize === 4) {
+    goalHintEl.textContent = "[1 2 3 4 | 5 6 7 8 | 9 10 11 12 | 13 14 15 _]";
+  } else {
+    const maxTile = gridSize * gridSize - 1;
+    goalHintEl.textContent = `1–${maxTile} (_ pojok kanan bawah)`;
+  }
+}
+
 /**
  * Ganti ukuran papan (3x3, 4x4, 5x5) dan reset konteks dashboard
  */
 function switchGridSize(newSize) {
   if (newSize === gridSize) return;
   pauseAnimation();
+  requestId++;
 
   gridSize = newSize;
   sizeButtons.forEach((btn) => {
@@ -185,13 +272,7 @@ function switchGridSize(newSize) {
 
   boardTitleEl.textContent = `Papan Permainan (${gridSize}x${gridSize} Sliding Puzzle)`;
   benchmarkTitleEl.textContent = `Perbandingan Kinerja (Grid ${gridSize}x${gridSize})`;
-
-  if (gridSize === 3) {
-    goalHintEl.textContent = "[1 2 3 | 4 5 6 | 7 8 _]";
-  } else {
-    const maxTile = gridSize * gridSize - 1;
-    goalHintEl.textContent = `1–${maxTile} (_ pojok kanan bawah)`;
-  }
+  updateGoalHint();
 
   clearBenchmarkTable();
   initialState = [...DEFAULT_INITIAL_BOARDS[gridSize]];
@@ -214,34 +295,51 @@ function clearBenchmarkTable() {
   });
 }
 
+function markLimitExceeded(algorithm) {
+  const row = document.getElementById(`row-${algorithm}`);
+  if (!row) return;
+  row.querySelector(".col-nodes").textContent = "Batas terlampaui";
+  row.querySelector(".col-time").textContent = "-";
+  row.querySelector(".col-cost").textContent = "-";
+}
+
 /**
  * =========================================================================
- * BACKEND INTEGRATION BRIDGE (Hubungkan fungsi solver BFS/GBFS/A* di sini)
+ * BACKEND INTEGRATION BRIDGE (REST API solver BFS/GBFS/A*)
  * =========================================================================
  */
 const SolverBridge = {
-  async solve(algorithm, startBoard) {
+  async solve(algorithm, startBoard, size) {
+    let response;
     try {
-      const response = await fetch("http://127.0.0.1:5000/solve", {
+      response = await fetch(`${API_BASE}/solve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           algorithm: algorithm,
           board: startBoard,
-          size: gridSize,
+          size: size,
         }),
       });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Gagal memproses solusi di server.");
-      }
-      return data;
-    } catch (err) {
-      alert(`Error: ${err.message}\n\nPastikan server Python (app.py) sudah dijalankan!`);
-      setStatus("Error", "badge-error");
-      throw err;
+    } catch (networkErr) {
+      throw new Error(
+        "Tidak dapat terhubung ke server.\n\nPastikan server Python (app.py) sudah dijalankan!"
+      );
     }
+
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      throw new Error("Respons server tidak valid.");
+    }
+
+    if (!response.ok) {
+      const error = new Error(data.error || "Gagal memproses solusi di server.");
+      error.code = data.code || null;
+      throw error;
+    }
+    return data;
   },
 
   applySolution(algorithm, result) {
@@ -280,7 +378,7 @@ function playAnimation() {
     if (currentStepIndex < solutionSteps.length - 1) {
       currentStepIndex++;
       currentState = [...solutionSteps[currentStepIndex]];
-      renderBoard(currentState);
+      renderBoard(currentState, true);
       updateStepCounter();
     } else {
       pauseAnimation();
@@ -303,9 +401,20 @@ sizeButtons.forEach((btn) => {
   });
 });
 
-document.getElementById("btn-shuffle").addEventListener("click", () => {
+shuffleButton.addEventListener("click", async () => {
   pauseAnimation();
-  initialState = generateSolvableBoard();
+  requestId++;
+  const sizeAtRequest = gridSize;
+  const shuffleToken = requestId;
+
+  shuffleButton.disabled = true;
+  const newBoard = await fetchSolvableBoard();
+  shuffleButton.disabled = false;
+
+  // Abaikan jika ukuran papan atau konteks berubah selama menunggu server
+  if (sizeAtRequest !== gridSize || shuffleToken !== requestId) return;
+
+  initialState = newBoard;
   currentState = [...initialState];
   manualSteps = 0;
   solutionSteps = [];
@@ -318,8 +427,10 @@ document.getElementById("btn-shuffle").addEventListener("click", () => {
 
 document.getElementById("btn-reset").addEventListener("click", () => {
   pauseAnimation();
+  requestId++;
   currentState = [...initialState];
   manualSteps = 0;
+  solutionSteps = [];
   currentStepIndex = 0;
   manualStepsEl.textContent = "0";
   updateStepCounter();
@@ -327,13 +438,37 @@ document.getElementById("btn-reset").addEventListener("click", () => {
   renderBoard(currentState);
 });
 
-document.getElementById("btn-solve").addEventListener("click", async () => {
+solveButton.addEventListener("click", async () => {
+  if (isSolving) return;
   pauseAnimation();
+
   const selectedAlgo = document.querySelector('input[name="algorithm"]:checked').value;
+  const sizeAtRequest = gridSize;
+  requestId++;
+  const solveToken = requestId;
+
+  isSolving = true;
+  solveButton.disabled = true;
   setStatus(`Running ${selectedAlgo}...`, "badge-solving");
 
-  const result = await SolverBridge.solve(selectedAlgo, [...currentState]);
-  SolverBridge.applySolution(selectedAlgo, result);
+  try {
+    const result = await SolverBridge.solve(selectedAlgo, [...currentState], sizeAtRequest);
+    if (solveToken !== requestId || sizeAtRequest !== gridSize) return;
+    SolverBridge.applySolution(selectedAlgo, result);
+  } catch (err) {
+    if (solveToken === requestId && sizeAtRequest === gridSize) {
+      if (err.code === "SEARCH_LIMIT_EXCEEDED") {
+        markLimitExceeded(selectedAlgo);
+        setStatus("Batas Terlampaui", "badge-error");
+      } else {
+        setStatus("Error", "badge-error");
+      }
+      alert(`Error: ${err.message}`);
+    }
+  } finally {
+    isSolving = false;
+    solveButton.disabled = false;
+  }
 });
 
 document.getElementById("btn-play").addEventListener("click", playAnimation);
@@ -344,7 +479,7 @@ document.getElementById("btn-prev").addEventListener("click", () => {
   if (currentStepIndex > 0) {
     currentStepIndex--;
     currentState = [...solutionSteps[currentStepIndex]];
-    renderBoard(currentState);
+    renderBoard(currentState, true);
     updateStepCounter();
   }
 });
@@ -354,7 +489,7 @@ document.getElementById("btn-next").addEventListener("click", () => {
   if (currentStepIndex < solutionSteps.length - 1) {
     currentStepIndex++;
     currentState = [...solutionSteps[currentStepIndex]];
-    renderBoard(currentState);
+    renderBoard(currentState, true);
     updateStepCounter();
   }
 });
@@ -368,4 +503,5 @@ speedSlider.addEventListener("input", (e) => {
 document.getElementById("btn-clear-table").addEventListener("click", clearBenchmarkTable);
 
 // Inisialisasi awal saat halaman dibuka
+updateGoalHint();
 renderBoard(currentState);
